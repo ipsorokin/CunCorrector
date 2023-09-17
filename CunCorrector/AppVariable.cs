@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 
 namespace CunCorrector
 {
@@ -19,7 +15,7 @@ namespace CunCorrector
             {"33B80C00-DEB0-41F2-B995-76942AE8FF19", "USB-Пульт"},
         };
 
-        public static Dictionary<string, string> ConcentratorClass { get; } = new Dictionary<string, string>
+        public static Dictionary<string, string> ConcentratorClasses { get; } = new Dictionary<string, string>
         {
             {"51E9FC49-F2F0-46D2-A243-C5C9C3F83956", "КУН-2Д"},
             {"CBAD15FE-E91A-4127-B6EA-9A3D18AC2CE9", "КУН-2Д1"},

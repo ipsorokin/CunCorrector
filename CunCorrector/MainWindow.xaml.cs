@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using CunCorrector.ViewModels;
+using System.Windows;
 
 namespace CunCorrector
 {
@@ -16,7 +17,7 @@ namespace CunCorrector
         {
             if (e.Key == System.Windows.Input.Key.F5)
             {
-                
+                ((MainViewModel)DataContext).LoadConfigFile(true);
             }
         }
     }

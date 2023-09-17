@@ -2,85 +2,23 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Xml.Linq;
 
 namespace CunCorrector.Controllers
 {
     internal class ConcentratorController
     {
+        private string PATH_TO_SETTINGS = "C:\\1Tekon\\ASUD Scada\\OPC Server\\settings";
+        private string FILE_NAME = "hwlayer.conf";
+        private string VOICE_CHANNEL_CLASS = "6F7AAE80-6C7E-41A6-A2F2-CF2F78FB9C10";
 
-        //private string HWLAYERCONFPATH = "C:\\Users\\user\\Desktop\\hwlayer.conf";
-        //private RelayCommand _saveCommand;
+        public ConcentratorController() { }
 
-
-
-
-
-        //private string HWLAYERPATH = "C:\\Users\\user\\Desktop\\hwlayer.conf";
-
-        //private RelayCommand _rollback;
-        //private RelayCommand _applyChanges;
-
-        //public MainViewModel()
-        //{
-        //    LoadConfigurationFile(HWLAYERPATH);
-        //}
-
-
-        //public Dictionary<string, string> Concentrators { get; } = new Dictionary<string, string>()
-        //{
-        //    { "51E9FC49-F2F0-46D2-A243-C5C9C3F83956", "КУН-2Д" },
-        //    { "CBAD15FE-E91A-4127-B6EA-9A3D18AC2CE9", "КУН-2Д1" }
-        //};
-
-
-        //public RelayCommand SaveCommand => _saveCommand ?? (_saveCommand = new RelayCommand((obj) =>
-        //{
-
-        //}));
-
-        ///// <summary>
-        ///// 
-        ///// </summary>
-        //public ObservableCollection<HardwareNode> HardwareNodes { get; } = new ObservableCollection<HardwareNode>();
-        ///// <summary>
-        ///// 
-        ///// </summary>
-        //public Hardware SelectedHardware { get; set; }
-        ///// <summary>
-        ///// 
-        ///// </summary>
-        //public bool IsSetFilter { get; set; }
-        ///// <summary>
-        ///// 
-        ///// </summary>
-        //public RelayCommand Rollback => _rollback ?? (_rollback = new RelayCommand((obj) =>
-        //{
-        //    SaveChanges(HWLAYERPATH);
-        //}));
-        ///// <summary>
-        ///// 
-        ///// </summary>
-        //public RelayCommand ApplyChanges => _applyChanges ?? (_applyChanges = new RelayCommand((obj) =>
-        //{
-        //    MessageBoxResult result = MessageBox.Show(
-        //        "ПЕРЕД ПРИМЕНЕНИЕМ ИЗМЕНЕНИЙ РЕКОМЕНДУЕТСЯ СДЕЛАТЬ РЕЗЕРВНУЮ КОПИЮ НАСТРОЕК!\n\nПРОДОЛЖИТЬ?",
-        //        "ВНИМАНИЕ",
-        //        MessageBoxButton.YesNo,
-        //        MessageBoxImage.Warning,
-        //        MessageBoxResult.No
-        //        );
-
-        //    if (result == MessageBoxResult.No) return;
-
-        //    SaveChanges(HWLAYERPATH);
-        //}));
-
-        public ObservableCollection<IPConcentrator> GetIPConcentrators(string path)
+        public ObservableCollection<IPConcentrator> GetIPConcentrators()
         {
+            string path = Path.Combine(PATH_TO_SETTINGS, FILE_NAME);
             XDocument document = XDocument.Load(path);
             XElement root = document.Element("Configuration");
 
@@ -88,13 +26,13 @@ namespace CunCorrector.Controllers
 
             foreach (XElement node in root.Elements("Item"))
             {
-                ipConcentrators.Add(CreateIPConcentratorItem(node));
+                ipConcentrators.Add(CreateIPConcentrator(node));
             }
 
             return ipConcentrators;
         }
 
-        public IPConcentrator CreateIPConcentratorItem(XElement node)
+        public IPConcentrator CreateIPConcentrator(XElement node)
         {
             IPConcentrator ipConcentrator = IPConcentrator.GenerateFromXml(node);
 
@@ -106,75 +44,81 @@ namespace CunCorrector.Controllers
                 {
                     ipConcentrator.AddConcentrator(concentrator);
                 }
-
             }
 
             return ipConcentrator;
         }
 
-        //private void SaveChanges(string path)
-        //{
-        //    List<string> selectedConcentratorIds = new List<string>();
 
-        //    foreach (HardwareNode node in HardwareNodes)
-        //    {
-        //        foreach (HardwareNode hardwareNode in node.Children)
-        //        {
-        //            if (hardwareNode.IsSelected)
-        //            {
-        //                selectedConcentratorIds.Add(hardwareNode.Hardware.Id);
-        //            }
-        //        }
-        //    }
+        public void SaveChanges(IEnumerable<IPConcentrator> ipConcentrators, string selectedConcentratorClass, bool setVoiceFilter = false)
+        {
+            var b = GetChangedConcentratorIds(ipConcentrators);
 
-        //    XDocument document = XDocument.Load(path);
-        //    XElement root = document.Element("Configuration");
+            var path = Path.Combine(PATH_TO_SETTINGS, FILE_NAME);
 
-        //    if (root != null)
-        //    {
-        //        foreach (XElement node in root.Elements("Item"))
-        //        {
-        //            foreach (XElement concentrator in node.Elements("Item"))
-        //            {
-        //                if (selectedConcentratorIds.Contains(concentrator.Attribute("ID").Value))
-        //                    ChangeConcentratorType(concentrator);
-        //            }
-        //        }
-        //    }
+            XDocument document = XDocument.Load(path);
+            XElement root = document.Element("Configuration");
 
-        //    document.Save(path);
+            foreach (XElement node in root.Elements("Item"))
+            {
+                foreach (XElement concentrator in node.Elements("Item"))
+                {
+                    if (b.Contains(concentrator.Attribute("ID").Value))
+                        ChangeConcentratorType(concentrator, selectedConcentratorClass, setVoiceFilter);
+                }
+            }
 
-        //    LoadConfigurationFile(HWLAYERPATH);
-        //}
+            File.Copy(path, Path.Combine(PATH_TO_SETTINGS, FILE_NAME.Insert(FILE_NAME.Length - 5, $"_{Guid.NewGuid()}")));
+            document.Save(path);
+        }
 
-        //private void ChangeConcentratorType(XElement concentrator)
-        //{
-        //    if (!Concentrators.ContainsKey(concentrator.Element("Class").Value))
-        //        return;
 
-        //    concentrator.Element("Class").Value = SelectedHardware.Class;
+        private IEnumerable<string> GetChangedConcentratorIds(IEnumerable<IPConcentrator> ipConcentrators)
+        {
+            List<string> selectedConcentratorIds = new List<string>();
 
-        //    foreach (XElement channel in concentrator.Elements("Item"))
-        //        SetVoiceFilter(channel);
-        //}
+            foreach (IPConcentrator node in ipConcentrators)
+            {
+                if (node.Concentrators != null)
+                    foreach (var hardwareNode in node.Concentrators)
+                    {
+                        if (hardwareNode.IsSelected)
+                        {
+                            selectedConcentratorIds.Add(hardwareNode.Id);
+                        }
+                    }
+            }
 
-        //private void SetVoiceFilter(XElement voiceChannel)
-        //{
-        //    if (voiceChannel.Element("Class").Value != "6F7AAE80-6C7E-41A6-A2F2-CF2F78FB9C10")
-        //        return;
+            return selectedConcentratorIds;
+        }
 
-        //    if (IsSetFilter)
-        //    {
-        //        if (voiceChannel.Element("Filter") != null)
-        //            voiceChannel.Element("Filter").Remove();
-        //    }
-        //    else
-        //    {
-        //        if (voiceChannel.Element("Filter") != null)
-        //            voiceChannel.Element("Filter").Value = IsSetFilter.ToString();
-        //        else
-        //            voiceChannel.Add(new XElement("Filter", "False"));
-        //    }
-        //}
+        private void ChangeConcentratorType(XElement concentrator, string selectedConcentratorClass, bool setVoiceFilter)
+        {
+            if (!AppVariable.ConcentratorClasses.ContainsKey(concentrator.Element("Class").Value))
+                return;
+
+            concentrator.Element("Class").Value = selectedConcentratorClass;
+
+            foreach (XElement channel in concentrator.Elements("Item"))
+                SetVoiceFilter(channel, setVoiceFilter);
+        }
+
+        private void SetVoiceFilter(XElement voiceChannel, bool setVoiceFilter)
+        {
+            if (voiceChannel.Element("Class").Value != VOICE_CHANNEL_CLASS)
+                return;
+
+            if (setVoiceFilter)
+            {
+                voiceChannel.Element("Filter")?.Remove();
+            }
+            else
+            {
+                if (voiceChannel.Element("Filter") != null)
+                    voiceChannel.Element("Filter").Value = setVoiceFilter.ToString();
+                else
+                    voiceChannel.Add(new XElement("Filter", false));
+            }
+        }
     }
 }

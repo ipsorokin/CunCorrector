@@ -4,33 +4,36 @@ using CunCorrector.Models;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 
 namespace CunCorrector.ViewModels
 {
     internal class MainViewModel : BaseViewModel
     {
-        private string PathToConfig = "C:\\Users\\user\\Desktop\\hwlayer.conf";
         private ConcentratorController _controller;
         private RelayCommand _saveCommand;
+        private ObservableCollection<IPConcentrator> _ipConcentrators;
+        private string _selectedConcentratorClass;
+        private bool _setVoiceFilter;
 
         public MainViewModel()
         {
             _controller = new ConcentratorController();
-            LoadConfigFile(PathToConfig);
+            LoadConfigFile();
         }
 
-        public ObservableCollection<IPConcentrator> IPConcentrators { get; set; }
+        public ObservableCollection<IPConcentrator> IPConcentrators { get => _ipConcentrators; set { _ipConcentrators = value; OnPropertyChanged(); } }
+        public string SelectedConcentratorClass { get => _selectedConcentratorClass; set { _selectedConcentratorClass = value; OnPropertyChanged(); } }
+        public bool SetVoiceFilter { get => _setVoiceFilter; set { _setVoiceFilter = value; OnPropertyChanged(); } }
+        public Dictionary<string, string> ConcentratorClasses { get; } = AppVariable.ConcentratorClasses;
 
-        public RelayCommand SaveCommand => _saveCommand ?? (_saveCommand = new RelayCommand(obj =>
+        public RelayCommand SaveCommand => _saveCommand ?? (_saveCommand = new RelayCommand((obj) =>
         {
             try
             {
-                var a = IPConcentrators;
-                MessageBox.Show("Резервная копия успешно создана.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                _controller.SaveChanges(IPConcentrators, SelectedConcentratorClass, SetVoiceFilter);
+                MessageBox.Show("Изменения сохранены. Резервная копия создана.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                LoadConfigFile(true);
             }
             catch (Exception ex)
             {
@@ -39,14 +42,14 @@ namespace CunCorrector.ViewModels
         }));
 
 
-        private void LoadConfigFile(string path, bool reload = false)
+        public void LoadConfigFile(bool reload = false)
         {
             if (reload && IPConcentrators != null)
             {
                 IPConcentrators.Clear();
             }
 
-            IPConcentrators = _controller.GetIPConcentrators(path);
+            IPConcentrators = _controller.GetIPConcentrators();
         }
     }
 }
